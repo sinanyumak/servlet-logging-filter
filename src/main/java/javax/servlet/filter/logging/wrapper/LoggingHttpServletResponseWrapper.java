@@ -6,6 +6,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
@@ -30,8 +32,8 @@ public class LoggingHttpServletResponseWrapper extends HttpServletResponseWrappe
 	}
 
 	@Override
-	public PrintWriter getWriter() {
-		return new PrintWriter(loggingServletOutpuStream.baos);
+	public PrintWriter getWriter() throws UnsupportedEncodingException {
+		return new EagerlyFlushingPrintWriter(loggingServletOutpuStream.baos, getCharacterEncoding());
 	}
 
 	public Map<String, String> getHeaders() {
@@ -84,4 +86,35 @@ public class LoggingHttpServletResponseWrapper extends HttpServletResponseWrappe
 			baos.write(b, off, len);
 		}
 	}
+
+	/**
+	 * A {@link PrintWriter} implementation which flushes buffer
+	 * immediately after write operations.
+	 */
+	private class EagerlyFlushingPrintWriter extends PrintWriter {
+
+		public EagerlyFlushingPrintWriter(OutputStream out, String characterEncoding) throws UnsupportedEncodingException {
+			super(new OutputStreamWriter(out, characterEncoding));
+		}
+
+		@Override
+		public void write(char[] buf, int off, int len) {
+			super.write(buf, off, len);
+			super.flush();
+		}
+
+		@Override
+		public void write(String s, int off, int len) {
+			super.write(s, off, len);
+			super.flush();
+		}
+
+		@Override
+		public void write(int c) {
+			super.write(c);
+			super.flush();
+		}
+
+	}
+
 }
